@@ -1,0 +1,11 @@
+{{define "body"}}
+
+<div class="row text-center">
+    <h2>Playing video {{.Name}}</h2>
+</div>
+
+<div class="row col-md-offset-2 col-md-8">
+    <video id="video" width="500px" height="500px" src={{.VideoURL}} controls></video>
+</div>
+
+{{end}}

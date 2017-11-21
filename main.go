@@ -48,12 +48,17 @@ func decorate(h http.Handler) http.Handler {
 	})
 }
 
+// https://skarlso.github.io/2016/06/12/google-signin-with-go/
+// https://github.com/google/google-api-go-client/blob/master/GettingStarted.md
+// https://github.com/golang/oauth2
+
 func main() {
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", decorate(fs)))
 	fs1 := http.FileServer(http.Dir("resourses"))
 	http.Handle("/resourses/", http.StripPrefix("/resourses/", fs1))
 
+	http.HandleFunc("/", videolistHandler)
 	http.HandleFunc("/list", videolistHandler)
 	http.HandleFunc("/play", playHandler)
 	http.HandleFunc("/me", videoplayHandler)

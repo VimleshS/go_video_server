@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,9 +21,10 @@ type page struct {
 	Name       string
 }
 
-type videoInfo struct {
-	Name string
-	Url  string
+type FileInfo struct {
+	Name        string
+	IsDirectory bool
+	Path        string
 }
 
 func decorate(h http.Handler) http.Handler {
@@ -73,7 +75,7 @@ func videolistHandler(w http.ResponseWriter, r *http.Request) {
 
 	files := getVideoFilesInDirectory()
 	data := struct {
-		VideoFiles []string
+		VideoFiles []FileInfo
 	}{files}
 
 	//generate random key
@@ -123,38 +125,37 @@ func playHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "layout", p)
 }
 
-func getVideoFilesInDirectory() []string {
-	videofiles := []string{}
-	files, err := ioutil.ReadDir("./static/videos/")
-	if err != nil {
-		log.Println("error while reading files.. ", err.Error())
-	}
-	for _, file := range files {
-		videofiles = append(videofiles, file.Name())
-	}
-	return videofiles
+func getVideoFilesInDirectory() []FileInfo {
+
+	// videofiles := []string{}
+	// files, err := ioutil.ReadDir("./static/videos/")
+	// if err != nil {
+	// 	log.Println("error while reading files.. ", err.Error())
+	// }
+	// for _, file := range files {
+	// 	if file.IsDir() {
+	// 		continue
+	// 	}
+	// 	videofiles = append(videofiles, file.Name())
+	// }
+
+	fileList := []FileInfo{}
+	filepath.Walk("./static/videos/", func(path string, info os.FileInfo, err error) error {
+		path = strings.TrimPrefix(path, "static/videos/")
+		if len(path) > 0 {
+			fi := FileInfo{Name: path, Path: path, IsDirectory: info.IsDir()}
+			fileList = append(fileList, fi)
+		}
+		return nil
+	})
+	return fileList
 }
 
+// OBSOLETE
 func videoplayHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("-----------------handler------------")
 	pubKey := randomString(6)
 	fmt.Println("Pub key", pubKey)
-
-	// videosFromDirec := []videoInfo{}
-	// for _, file := range getVideoFilesInDirectory() {
-	// 	// fmt.Println(file)
-	// 	fmt.Println(randomString(6))
-
-	// 	videopath := fmt.Sprintf("videos/%s", file)
-	// 	videoURL, _ := encrypt(CIPHER_KEY, videopath)
-	// 	evideoURL := "/static/" + videoURL
-
-	// 	vi := videoInfo{
-	// 		Name: file,
-	// 		Url:  evideoURL,
-	// 	}
-	// 	videosFromDirec = append(videosFromDirec, vi)
-	// }
 
 	videopath := "videos/weekly-checkin call -2017-09-15.mp4"
 	// videoURL, err := encrypt(CIPHER_KEY, videopath)

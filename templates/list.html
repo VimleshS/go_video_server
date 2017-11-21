@@ -13,8 +13,12 @@
     
         {{range .VideoFiles}}
         <tr>
-            <td>{{.}} </td>
-            <td><a href="/play?file={{.}}">play</a> </td>
+            <td>{{.Name}} </td>
+            <td>
+                {{ if not .IsDirectory }}
+                    <a href="/play?file={{.Path}}">play</a>
+                {{ end }}
+            </td>
         </tr>
         {{end}}
         

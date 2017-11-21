@@ -1,7 +1,7 @@
 {{define "body"}}
 
 <div class="row text-center">
-    <h2>Video listing</h2>
+    <h2>Videos available on server</h2>
 </div>
 
 <div class="row col-md-offset-2 col-md-8">
@@ -16,7 +16,9 @@
             <td>{{.Name}} </td>
             <td>
                 {{ if not .IsDirectory }}
-                    <a href="/play?file={{.Path}}">play</a>
+                    <a href="/play?file={{.Path}}">
+                        <i class="fa fa-play-circle" aria-hidden="true"></i>
+                    </a>
                 {{ end }}
             </td>
         </tr>

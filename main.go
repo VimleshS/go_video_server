@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 type page struct {
@@ -25,6 +26,52 @@ type FileInfo struct {
 	Name        string
 	IsDirectory bool
 	Path        string
+}
+
+// Credentials which stores google ids.
+type Credentials struct {
+	Cid     string `json:"cid"`
+	Csecret string `json:"csecret"`
+}
+
+var (
+	cred  Credentials
+	conf  *oauth2.Config
+	state string
+	// store = sessions.NewCookieStore([]byte("secret"))
+)
+
+// User is a retrieved and authentiacted user.
+type User struct {
+	Sub           string `json:"sub"`
+	Name          string `json:"name"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Profile       string `json:"profile"`
+	Picture       string `json:"picture"`
+	Email         string `json:"email"`
+	EmailVerified string `json:"email_verified"`
+	Gender        string `json:"gender"`
+}
+
+func init() {
+	file, err := ioutil.ReadFile("./creds.json")
+	if err != nil {
+		fmt.Printf("File error: %v\n", err)
+		os.Exit(1)
+	}
+	json.Unmarshal(file, &cred)
+	fmt.Println(cred)
+
+	conf = &oauth2.Config{
+		ClientID:     cred.Cid,
+		ClientSecret: cred.Csecret,
+		RedirectURL:  "http://127.0.0.1:9090/auth",
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email", // You have to select your own scope from here -> https://developers.google.com/identity/protocols/googlescopes#google_sign-in
+		},
+		Endpoint: google.Endpoint,
+	}
 }
 
 func decorate(h http.Handler) http.Handler {
@@ -51,6 +98,7 @@ func decorate(h http.Handler) http.Handler {
 // https://skarlso.github.io/2016/06/12/google-signin-with-go/
 // https://github.com/google/google-api-go-client/blob/master/GettingStarted.md
 // https://github.com/golang/oauth2
+//http://localhost:9090/oauth_redirect_uri
 
 func main() {
 	fs := http.FileServer(http.Dir("static"))
@@ -58,23 +106,88 @@ func main() {
 	fs1 := http.FileServer(http.Dir("resourses"))
 	http.Handle("/resourses/", http.StripPrefix("/resourses/", fs1))
 
-	http.HandleFunc("/", videolistHandler)
+	// http.HandleFunc("/", videolistHandler)
+	http.HandleFunc("/", roothandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/auth", authHandler)
 	http.HandleFunc("/list", videolistHandler)
 	http.HandleFunc("/play", playHandler)
-	http.HandleFunc("/me", videoplayHandler)
 
 	err := http.ListenAndServe(":9090", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+}
 
+func roothandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/index.html", "templates/login.html")
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	//generate state key
+	state := randomString(6)
+
+	// set public key in cookie for decrypting names and play list
+	expiration := time.Now().Add(10 * time.Minute)
+	cookie := http.Cookie{
+		Name:    "state",
+		Value:   state,
+		Expires: expiration,
+	}
+	http.SetCookie(w, &cookie)
+
+	data := struct {
+		State string
+	}{state}
+
+	tmpl.ExecuteTemplate(w, "layout", data)
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state")
+	auth_url := conf.AuthCodeURL(state)
+	http.Redirect(w, r, auth_url, http.StatusFound)
+}
+func authHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Handle the exchange code to initiate a transport.
+	// session := sessions.Default(c)
+	// retrievedState := session.Get("state")
+	// if retrievedState != c.Query("state") {
+	// 	c.AbortWithError(http.StatusUnauthorized, fmt.Errorf("Invalid session state: %s", retrievedState))
+	// 	return
+	// }
+
+	fmt.Println("------------- AUTH URL --------------------------")
+	fmt.Println(r.URL)
+	tok, err := conf.Exchange(oauth2.NoContext, r.URL.Query().Get("code"))
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	client := conf.Client(oauth2.NoContext, tok)
+	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, http.StatusText(400), http.StatusBadRequest)
+		return
+	}
+	defer email.Body.Close()
+	data, _ := ioutil.ReadAll(email.Body)
+	log.Println("Email body: ", string(data))
+	// c.Status(http.StatusOK)
+	videolistHandler(w, r)
 }
 
 func videolistHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("templates/index.html", "templates/list.html")
 	if err != nil {
 		log.Println(err.Error())
-		http.Error(w, http.StatusText(500), 500)
+		http.Error(w, http.StatusText(400), http.StatusBadRequest)
 		return
 	}
 
@@ -131,19 +244,6 @@ func playHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getVideoFilesInDirectory() []FileInfo {
-
-	// videofiles := []string{}
-	// files, err := ioutil.ReadDir("./static/videos/")
-	// if err != nil {
-	// 	log.Println("error while reading files.. ", err.Error())
-	// }
-	// for _, file := range files {
-	// 	if file.IsDir() {
-	// 		continue
-	// 	}
-	// 	videofiles = append(videofiles, file.Name())
-	// }
-
 	fileList := []FileInfo{}
 	filepath.Walk("./static/videos/", func(path string, info os.FileInfo, err error) error {
 		path = strings.TrimPrefix(path, "static/videos/")
@@ -154,140 +254,4 @@ func getVideoFilesInDirectory() []FileInfo {
 		return nil
 	})
 	return fileList
-}
-
-// OBSOLETE
-func videoplayHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("-----------------handler------------")
-	pubKey := randomString(6)
-	fmt.Println("Pub key", pubKey)
-
-	videopath := "videos/weekly-checkin call -2017-09-15.mp4"
-	// videoURL, err := encrypt(CIPHER_KEY, videopath)
-	videoURL := doEncrypt(pubKey, videopath)
-	evideoURL := "/static/" + videoURL
-
-	/* 		if err != nil {
-	   			log.Println(err)
-	   		}
-	*/
-	p := page{
-		WsEndPoint: r.Host,
-		VideoURL:   evideoURL,
-	}
-
-	// for cookies
-	expiration := time.Now().Add(10 * time.Minute)
-	cookie := http.Cookie{
-		Name:    "pubkey",
-		Value:   pubKey,
-		Expires: expiration,
-	}
-	http.SetCookie(w, &cookie)
-	//cookies
-
-	tmpl, err := template.ParseFiles("templates/index.html", "templates/input.html")
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-	//experiment
-	buf := bytes.Buffer{}
-	tmpl.ExecuteTemplate(&buf, "layout", p)
-	w.Write(buf.Bytes())
-
-	// if err := tmpl.ExecuteTemplate(w, "layout", p); err != nil {
-	// 	log.Println(err.Error())
-	// 	http.Error(w, http.StatusText(500), 500)
-	// }
-}
-
-func ConnWs(w http.ResponseWriter, r *http.Request) {
-	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
-	if _, ok := err.(websocket.HandshakeError); ok {
-		http.Error(w, "Not a websocket handshake", 400)
-		return
-	} else if err != nil {
-		log.Println(err)
-		return
-	}
-
-	// var img64 []byte
-
-	res := map[string]interface{}{}
-	for {
-		// messageType, p, err := ws.ReadMessage()
-		// fmt.Println(messageType)
-		// fmt.Println(string(p))
-		// fmt.Println(err)
-
-		if err = ws.ReadJSON(&res); err != nil {
-			fmt.Printf("%v \n", res)
-
-			if err.Error() == "EOF" {
-				return
-			}
-			// ErrShortWrite means a write accepted fewer bytes than requested then failed to return an explicit error.
-			if err.Error() == "unexpected EOF" {
-				return
-			}
-			fmt.Println("Read : " + err.Error())
-			return
-		}
-
-		res["a"] = "a"
-		log.Println(res)
-
-		f, _ := os.Open("./videos/big.mp4")
-		wswriter, _ := ws.NextWriter(websocket.BinaryMessage)
-		io.Copy(wswriter, f)
-		f.Close()
-		wswriter.Close()
-
-		// reader := bufio.NewReader(f)
-		// buf := make([]byte, 1024*20)
-		// byt, err := reader.ReadBytes(8000)
-		// ws.WriteMessage(websocket.BinaryMessage, byt)
-
-		// // for {
-		// files, _ := ioutil.ReadDir("./videos")
-		// for _, f := range files {
-
-		// 	video, _ := ioutil.ReadFile("./videos/" + f.Name())
-		// 	ws.WriteMessage(websocket.BinaryMessage, video)
-
-		// 	/*Below code works*/
-		// 	// str := base64.StdEncoding.EncodeToString(img64)
-		// 	// res["img64"] = str
-
-		// 	// if err = ws.WriteJSON(&res); err != nil {
-		// 	// 	fmt.Println("watch dir - Write : " + err.Error())
-		// 	// }
-
-		// 	/*Efficient only for small data*/
-		// 	/*TextMessage*/
-		// 	/*Remember ruby multipart upload, always encoded into base64 */
-
-		// 	// _dst := make([]byte, base64.StdEncoding.EncodedLen(len(img64)))
-		// 	// base64.StdEncoding.Encode(_dst, img64)
-
-		// 	/*For larger data use NewEncoder */
-		// 	// _dst := &bytes.Buffer{}
-		// 	// encoder := base64.NewEncoder(base64.StdEncoding, _dst)
-		// 	// encoder.Write(img64)
-		// 	// encoder.Close()
-
-		// 	// ws.WriteMessage(websocket.TextMessage, _dst.Bytes())
-
-		// 	/*BinaryMessage*/
-		// 	/*utf-8 encoding*/
-		// 	// ws.WriteMessage(websocket.BinaryMessage, img64)
-
-		// 	time.Sleep(50 * time.Millisecond)
-		// }
-
-		time.Sleep(50 * time.Millisecond)
-		// }
-	}
 }

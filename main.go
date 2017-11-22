@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -101,22 +103,47 @@ func decorate(h http.Handler) http.Handler {
 //http://localhost:9090/oauth_redirect_uri
 
 func main() {
+	// fs := http.FileServer(http.Dir("static"))
+	// http.Handle("/static/", http.StripPrefix("/static/", decorate(fs)))
+	// fs1 := http.FileServer(http.Dir("resourses"))
+	// http.Handle("/resourses/", http.StripPrefix("/resourses/", fs1))
+
+	// // http.HandleFunc("/", videolistHandler)
+	// http.HandleFunc("/", roothandler)
+	// http.HandleFunc("/login", loginHandler)
+	// http.HandleFunc("/auth", authHandler)
+	// http.HandleFunc("/list", videolistHandler)
+	// http.HandleFunc("/play", playHandler)
+
+	// err := http.ListenAndServe(":9090", nil)
+	// if err != nil {
+	// 	log.Fatal("ListenAndServe: ", err)
+	// }
+
+	r := mux.NewRouter()
+	//static handlers
 	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", decorate(fs)))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", decorate(fs)))
 	fs1 := http.FileServer(http.Dir("resourses"))
-	http.Handle("/resourses/", http.StripPrefix("/resourses/", fs1))
+	r.PathPrefix("/resourses/").Handler(http.StripPrefix("/resourses/", fs1))
 
-	// http.HandleFunc("/", videolistHandler)
-	http.HandleFunc("/", roothandler)
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/auth", authHandler)
-	http.HandleFunc("/list", videolistHandler)
-	http.HandleFunc("/play", playHandler)
+	//flow handlers
+	r.HandleFunc("/", roothandler)
+	r.HandleFunc("/login", loginHandler).Methods("GET")
+	r.HandleFunc("/auth", authHandler).Methods("GET")
+	r.HandleFunc("/list", videolistHandler).Methods("GET")
+	r.HandleFunc("/play", playHandler).Methods("GET")
 
-	err := http.ListenAndServe(":9090", nil)
-	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+	srv := &http.Server{
+		Handler: r,
+		Addr:    "127.0.0.1:9090",
+
+		// Good practice: enforce timeouts for servers you create!
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
 	}
+
+	log.Fatal(srv.ListenAndServe())
 }
 
 func roothandler(w http.ResponseWriter, r *http.Request) {

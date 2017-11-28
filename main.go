@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -40,7 +42,7 @@ var (
 	cred  Credentials
 	conf  *oauth2.Config
 	state string
-	// store = sessions.NewCookieStore([]byte("secret"))
+	store = sessions.NewCookieStore([]byte("video-server-#$%"))
 )
 
 // User is a retrieved and authentiacted user.
@@ -63,7 +65,6 @@ func init() {
 		os.Exit(1)
 	}
 	json.Unmarshal(file, &cred)
-	fmt.Println(cred)
 
 	conf = &oauth2.Config{
 		ClientID:     cred.Cid,
@@ -74,26 +75,45 @@ func init() {
 		},
 		Endpoint: google.Endpoint,
 	}
+	gob.Register(&User{})
 }
 
 func decorate(h http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("-------------------------static handler----------------------")
-		c, _ := r.Cookie("pubkey")
-		fmt.Printf(" value from cookie %v  \n", c.Value)
-		if c != nil {
-			fmt.Println("r.URL.Path", r.URL.Path)
-			fmt.Println("c.Value", c.Value)
+		/*
+			c, _ := r.Cookie("pubkey")
+			fmt.Printf(" value from cookie %v  \n", c.Value)
+			if c != nil {
+				fmt.Println("r.URL.Path", r.URL.Path)
+				fmt.Println("c.Value", c.Value)
 
-			videoURL := doDecrypt(c.Value, r.URL.Path)
-			r.URL.Path = videoURL
+				videoURL := doDecrypt(c.Value, r.URL.Path)
+				r.URL.Path = videoURL
 
-			fmt.Println("new r.URL.Path", r.URL.Path)
+				fmt.Println("new r.URL.Path", r.URL.Path)
 
-			h.ServeHTTP(w, r)
+				h.ServeHTTP(w, r)
+			}
+		*/
+
+		session, err := store.Get(r, "user-details")
+		if err != nil {
+			http.Error(w, "Video File not found", 500)
+			return
 		}
+		pubKey := session.Values["pubkey"]
+		fmt.Printf(" value from cookie %v  \n", pubKey)
+		if pubKey == nil {
+			http.Error(w, "Video File not found", 500)
+			return
 
+		}
+		_pubKey := pubKey.(string)
+		videoURL := doDecrypt(_pubKey, r.URL.Path)
+		r.URL.Path = videoURL
+		h.ServeHTTP(w, r)
 	})
 }
 
@@ -103,23 +123,6 @@ func decorate(h http.Handler) http.Handler {
 //http://localhost:9090/oauth_redirect_uri
 
 func main() {
-	// fs := http.FileServer(http.Dir("static"))
-	// http.Handle("/static/", http.StripPrefix("/static/", decorate(fs)))
-	// fs1 := http.FileServer(http.Dir("resourses"))
-	// http.Handle("/resourses/", http.StripPrefix("/resourses/", fs1))
-
-	// // http.HandleFunc("/", videolistHandler)
-	// http.HandleFunc("/", roothandler)
-	// http.HandleFunc("/login", loginHandler)
-	// http.HandleFunc("/auth", authHandler)
-	// http.HandleFunc("/list", videolistHandler)
-	// http.HandleFunc("/play", playHandler)
-
-	// err := http.ListenAndServe(":9090", nil)
-	// if err != nil {
-	// 	log.Fatal("ListenAndServe: ", err)
-	// }
-
 	r := mux.NewRouter()
 	//static handlers
 	fs := http.FileServer(http.Dir("static"))
@@ -157,13 +160,18 @@ func roothandler(w http.ResponseWriter, r *http.Request) {
 	state := randomString(6)
 
 	// set public key in cookie for decrypting names and play list
-	expiration := time.Now().Add(10 * time.Minute)
-	cookie := http.Cookie{
-		Name:    "state",
-		Value:   state,
-		Expires: expiration,
-	}
-	http.SetCookie(w, &cookie)
+	/*
+		expiration := time.Now().Add(10 * time.Minute)
+		cookie := http.Cookie{
+			Name:    "state",
+			Value:   state,
+			Expires: expiration,
+		}
+		http.SetCookie(w, &cookie)
+	*/
+	session, _ := store.Get(r, "user-details")
+	session.Values["state"] = state
+	session.Save(r, w)
 
 	data := struct {
 		State string
@@ -174,22 +182,30 @@ func roothandler(w http.ResponseWriter, r *http.Request) {
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
-	auth_url := conf.AuthCodeURL(state)
-	http.Redirect(w, r, auth_url, http.StatusFound)
+	session, _ := store.Get(r, "user-details")
+	sessionState := session.Values["state"]
+	if sessionState != state {
+		http.Error(w, "Request from from an unknown source", 400)
+		return
+	}
+	authURL := conf.AuthCodeURL(state)
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 func authHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Handle the exchange code to initiate a transport.
-	// session := sessions.Default(c)
+	session, _ := store.Get(r, "user-details")
+	retrievedState := session.Values["state"]
 	// retrievedState := session.Get("state")
-	// if retrievedState != c.Query("state") {
-	// 	c.AbortWithError(http.StatusUnauthorized, fmt.Errorf("Invalid session state: %s", retrievedState))
-	// 	return
-	// }
+	if retrievedState != r.URL.Query().Get("state") {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
 
 	fmt.Println("------------- AUTH URL --------------------------")
 	fmt.Println(r.URL)
-	tok, err := conf.Exchange(oauth2.NoContext, r.URL.Query().Get("code"))
+	code := r.URL.Query().Get("code")
+
+	tok, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, http.StatusText(500), 500)
@@ -206,7 +222,11 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
 	log.Println("Email body: ", string(data))
-	// c.Status(http.StatusOK)
+
+	user := User{}
+	json.Unmarshal(data, &user)
+	session.Values["user"] = user
+	session.Save(r, w)
 	videolistHandler(w, r)
 }
 
@@ -218,23 +238,29 @@ func videolistHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files := getVideoFilesInDirectory()
-	data := struct {
-		VideoFiles []FileInfo
-	}{files}
-
 	//generate random key
 	pubKey := randomString(6)
 	fmt.Println("Pub key", pubKey)
+	session, _ := store.Get(r, "user-details")
+	session.Values["pubkey"] = pubKey
+	user := session.Values["user"].(User)
+	session.Save(r, w)
 
-	// set public key in cookie for decrypting names and play list
-	expiration := time.Now().Add(60 * time.Minute)
-	cookie := http.Cookie{
-		Name:    "pubkey",
-		Value:   pubKey,
-		Expires: expiration,
-	}
-	http.SetCookie(w, &cookie)
+	files := getVideoFilesInDirectory()
+	data := struct {
+		VideoFiles []FileInfo
+		UserInfo   User
+	}{files,
+		user}
+
+	// // set public key in cookie for decrypting names and play list
+	// expiration := time.Now().Add(60 * time.Minute)
+	// cookie := http.Cookie{
+	// 	Name:    "pubkey",
+	// 	Value:   pubKey,
+	// 	Expires: expiration,
+	// }
+	// http.SetCookie(w, &cookie)
 
 	tmpl.ExecuteTemplate(w, "layout", data)
 }
@@ -245,14 +271,24 @@ func playHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(videopath)
 
 	var pubKey string
-	c, _ := r.Cookie("pubkey")
-	fmt.Printf(" decrypt value from cookie %v  \n", c.Value)
+	/*
+		c, _ := r.Cookie("pubkey")
+		fmt.Printf(" decrypt value from cookie %v  \n", c.Value)
 
-	if c == nil {
-		pubKey = c.Value
-	} else {
-		pubKey = c.Value
+		if c == nil {
+			pubKey = c.Value
+		} else {
+			pubKey = c.Value
+		}
+	*/
+	session, _ := store.Get(r, "user-details")
+	_pubKey := session.Values["pubkey"]
+	if _pubKey == nil {
+		http.Error(w, "(Play) Error Video File not found", 500)
+		return
+
 	}
+	pubKey = _pubKey.(string)
 
 	videoURL := doEncrypt(pubKey, videopath)
 	evideoURL := "/static/" + videoURL

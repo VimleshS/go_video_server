@@ -42,7 +42,7 @@ func (vlh videoListHandler) sessionUser(r *http.Request) *User {
 
 func (vlh videoListHandler) generateSaltForURLEncryption(w http.ResponseWriter, r *http.Request) error {
 	session, _ := store.Get(r, "user-details")
-	session.Values["pubkey"] = randomString(SaltLen)
+	session.Values["pubkey"] = videoURLCrypto{}.randomString(SaltLen)
 	err := session.Save(r, w)
 	return err
 }

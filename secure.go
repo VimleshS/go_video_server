@@ -20,19 +20,24 @@ var (
 	TotalLen = 16
 )
 
-func doEncrypt(pubkey string, source string) string {
-	key := append(CipherKey, []byte(pubkey)...)
-	encypted, _ := encrypt(key, source)
+type videoURLCrypto struct {
+	Pubkey string
+	Source string
+}
+
+func (v videoURLCrypto) doEncrypt() string {
+	key := append(CipherKey, []byte(v.Pubkey)...)
+	encypted, _ := v.encrypt(key, v.Source)
 	return encypted
 }
 
-func doDecrypt(pubkey string, source string) string {
-	key := append(CipherKey, []byte(pubkey)...)
-	decypted, _ := decrypt(key, source)
+func (v videoURLCrypto) doDecrypt() string {
+	key := append(CipherKey, []byte(v.Pubkey)...)
+	decypted, _ := v.decrypt(key, v.Source)
 	return decypted
 }
 
-func randomString(n int) string {
+func (v videoURLCrypto) randomString(n int) string {
 	m.Seed(time.Now().UnixNano())
 	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -43,7 +48,7 @@ func randomString(n int) string {
 	return string(b)
 }
 
-func encrypt(key []byte, message string) (encmess string, err error) {
+func (v videoURLCrypto) encrypt(key []byte, message string) (encmess string, err error) {
 	plainText := []byte(message)
 
 	block, err := aes.NewCipher(key)
@@ -67,7 +72,7 @@ func encrypt(key []byte, message string) (encmess string, err error) {
 	return
 }
 
-func decrypt(key []byte, securemess string) (decodedmess string, err error) {
+func (v videoURLCrypto) decrypt(key []byte, securemess string) (decodedmess string, err error) {
 	cipherText, err := base64.URLEncoding.DecodeString(securemess)
 	if err != nil {
 		return

@@ -19,7 +19,7 @@ func processEncryptedVideoURL(h http.Handler) http.Handler {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		videoURL := doDecrypt(pubKey, r.URL.Path)
+		videoURL := videoURLCrypto{Pubkey: pubKey, Source: r.URL.Path}.doDecrypt()
 		r.URL.Path = videoURL
 
 		fmt.Printf("---> In static handler \n path %-11s \n key %-11s \n "+

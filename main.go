@@ -92,7 +92,7 @@ func roothandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//generate state key
-	state := randomString(6)
+	state := videoURLCrypto{}.randomString(6)
 
 	// set public key in cookie for decrypting names and play list
 	session, _ := store.Get(r, "user-details")
@@ -131,7 +131,7 @@ func playHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pubKey = _pubKey.(string)
-	videoURL := doEncrypt(pubKey, videopath)
+	videoURL := videoURLCrypto{Pubkey: pubKey, Source: videopath}.doEncrypt()
 	evideoURL := "/static/" + videoURL
 
 	tmpl, err := template.ParseFiles("templates/index.html", "templates/play.html")

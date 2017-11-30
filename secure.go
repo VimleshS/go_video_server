@@ -11,35 +11,23 @@ import (
 	"time"
 )
 
-// func main() {
-// 	CIPHER_KEY := []byte("0123456789012345")
-// 	msg := "A quick brown fox jumped over the lazy dog."
-
-// 	if encrypted, err := encrypt(CIPHER_KEY, msg); err != nil {
-// 		log.Println(err)
-// 	} else {
-// 		log.Printf("CIPHER KEY: %s\n", string(CIPHER_KEY))
-// 		log.Printf("ENCRYPTED: %s\n", encrypted)
-
-// 		if decrypted, err := decrypt(CIPHER_KEY, encrypted); err != nil {
-// 			log.Println(err)
-// 		} else {
-// 			log.Printf("DECRYPTED: %s\n", decrypted)
-// 		}
-// 	}
-// }
-
-// var CIPHER_KEY = []byte("0123456789012345")
-var CIPHER_KEY = []byte("0123456789")
+var (
+	// CipherKey 10 byte composing a private part of key
+	CipherKey = []byte("0123456789")
+	// SaltLen Indicating public key len
+	SaltLen = 6
+	// TotalLen a placeholder just to indicate the total key length
+	TotalLen = 16
+)
 
 func doEncrypt(pubkey string, source string) string {
-	key := append(CIPHER_KEY, []byte(pubkey)...)
+	key := append(CipherKey, []byte(pubkey)...)
 	encypted, _ := encrypt(key, source)
 	return encypted
 }
 
 func doDecrypt(pubkey string, source string) string {
-	key := append(CIPHER_KEY, []byte(pubkey)...)
+	key := append(CipherKey, []byte(pubkey)...)
 	decypted, _ := decrypt(key, source)
 	return decypted
 }

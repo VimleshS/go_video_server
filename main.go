@@ -14,8 +14,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -65,7 +63,7 @@ func main() {
 	r := mux.NewRouter()
 	//static handlers
 	fs := http.FileServer(http.Dir("static"))
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", decorate(fs)))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", processEncryptedVideoURL(fs)))
 	fs1 := http.FileServer(http.Dir("resourses"))
 	r.PathPrefix("/resourses/").Handler(http.StripPrefix("/resourses/", fs1))
 
@@ -73,52 +71,17 @@ func main() {
 	r.HandleFunc("/", roothandler)
 	r.HandleFunc("/login", loginHandler).Methods("GET")
 	r.HandleFunc("/auth", authHandler).Methods("GET")
-	r.HandleFunc("/list", videolistHandler).Methods("GET")
+	r.Handle("/list", videoListHandler{}).Methods("GET")
 	r.HandleFunc("/play", playHandler).Methods("GET")
 
 	srv := &http.Server{
 		Handler: r,
 		Addr:    "127.0.0.1:9090",
-
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-
 	log.Fatal(srv.ListenAndServe())
-}
-
-func decorate(h http.Handler) http.Handler {
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("-------------------------static handler----------------------")
-		//"played_time"
-		playedTime, err := r.Cookie("played_time")
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		fmt.Printf(" value from cookie %v  \n", playedTime.Value)
-
-		session, err := store.Get(r, "user-details")
-		if err != nil {
-			http.Error(w, "Video File not found", 500)
-			return
-		}
-		pubKey := session.Values["pubkey"]
-		fmt.Printf(" value from cookie %v  \n", pubKey)
-		if pubKey == nil {
-			http.Error(w, "Video File not found", 500)
-			return
-
-		}
-		_pubKey := pubKey.(string)
-		fmt.Println(r.URL.Path)
-
-		videoURL := doDecrypt(_pubKey, r.URL.Path)
-		r.URL.Path = videoURL
-		fmt.Printf(" time -> %v url -> %v \n", time.Now().String(), videoURL)
-		h.ServeHTTP(w, r)
-	})
 }
 
 func roothandler(w http.ResponseWriter, r *http.Request) {
@@ -154,86 +117,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	authURL := conf.AuthCodeURL(state)
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
-func authHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle the exchange code to initiate a transport.
-	session, _ := store.Get(r, "user-details")
-	retrievedState := session.Values["state"]
-	if retrievedState != r.URL.Query().Get("state") {
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	fmt.Println("------------- AUTH URL --------------------------")
-	fmt.Println(r.URL)
-	code := r.URL.Query().Get("code")
-
-	tok, err := conf.Exchange(oauth2.NoContext, code)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	client := conf.Client(oauth2.NoContext, tok)
-	email, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, http.StatusText(400), http.StatusBadRequest)
-		return
-	}
-	defer email.Body.Close()
-	data, _ := ioutil.ReadAll(email.Body)
-	log.Println("Email body: ", string(data))
-
-	user := User{}
-	json.Unmarshal(data, &user)
-	session.Values["user"] = user
-	session.Save(r, w)
-	videolistHandler(w, r)
-}
-
-func videolistHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("templates/index.html", "templates/list.html")
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, http.StatusText(400), http.StatusBadRequest)
-		return
-	}
-
-	//generate random key
-	//to cross check if for loggedin user
-	// TODO: Add a concrete condition to check if the user is logged in ..
-	pubKey := randomString(6)
-	fmt.Println("Pub key", pubKey)
-	session, _ := store.Get(r, "user-details")
-	session.Values["pubkey"] = pubKey
-	// user := session.Values["user"].(User)
-	session.Save(r, w)
-
-	// remove after user has come form oauth url
-	user := User{
-		Picture: "https://lh6.googleusercontent.com/-TUpg87ezNDw/AAAAAAAAAAI/AAAAAAAAACQ/6g6K__7LDaQ/photo.jpg",
-		Email:   "vimlesh.sharma@synerzip.com",
-	}
-
-	files := getVideoFilesInDirectory()
-	data := struct {
-		VideoFiles []FileInfo
-		UserInfo   User
-	}{files,
-		user}
-
-	// // set public key in cookie for decrypting names and play list
-	// expiration := time.Now().Add(60 * time.Minute)
-	// cookie := http.Cookie{
-	// 	Name:    "pubkey",
-	// 	Value:   pubKey,
-	// 	Expires: expiration,
-	// }
-	// http.SetCookie(w, &cookie)
-
-	tmpl.ExecuteTemplate(w, "layout", data)
-}
 
 func playHandler(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Query().Get("file")
@@ -246,7 +129,6 @@ func playHandler(w http.ResponseWriter, r *http.Request) {
 	if _pubKey == nil {
 		http.Error(w, "(Play) Error Video File not found", 500)
 		return
-
 	}
 	pubKey = _pubKey.(string)
 	videoURL := doEncrypt(pubKey, videopath)
@@ -263,17 +145,4 @@ func playHandler(w http.ResponseWriter, r *http.Request) {
 		Name:     file,
 	}
 	tmpl.ExecuteTemplate(w, "layout", p)
-}
-
-func getVideoFilesInDirectory() []FileInfo {
-	fileList := []FileInfo{}
-	filepath.Walk("./static/videos/", func(path string, info os.FileInfo, err error) error {
-		path = strings.TrimPrefix(path, "static/videos/")
-		if len(path) > 0 {
-			fi := FileInfo{Name: path, Path: path, IsDirectory: info.IsDir()}
-			fileList = append(fileList, fi)
-		}
-		return nil
-	})
-	return fileList
 }

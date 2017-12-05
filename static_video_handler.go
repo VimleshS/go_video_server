@@ -8,11 +8,16 @@ import (
 func processEncryptedVideoURL(h http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// playedTime, err := r.Cookie("played_time")
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// }
-		// fmt.Printf(" value from cookie %v  \n", playedTime.Value)
+
+		playedTime, err := r.Cookie("played_time")
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		/*Just needed to toggle condition*/
+		//Logger for time metrics
+		if err == nil {
+			fmt.Printf("===> Played Time from cookie %v  \n", playedTime.Value)
+		}
 
 		pubKey, err := retrivePublicKey(r)
 		if err != nil {

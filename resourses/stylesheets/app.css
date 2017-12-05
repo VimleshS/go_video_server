@@ -10,6 +10,9 @@ body {
     padding-bottom: 20px;
 }
 
+.padding-14px {
+    padding: 14px;
+}
 
 .display-flex{
     display: flex;
@@ -17,4 +20,12 @@ body {
 
 .justify-center {
     justify-content: center;
+}
+
+.word-wrap-break {
+    word-wrap: break-word;
+}
+
+.table-layout-fixed {
+    table-layout: fixed;
 }

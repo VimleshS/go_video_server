@@ -7,9 +7,18 @@ type page struct {
 }
 
 type FileInfo struct {
+	ID          int
 	Name        string
 	IsDirectory bool
 	Path        string
+}
+
+type GroupedFileInfo struct {
+	ID          int
+	Name        string
+	IsDirectory bool
+	Path        string
+	Childs      []FileInfo
 }
 
 // Credentials which stores google ids.

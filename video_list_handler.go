@@ -21,9 +21,9 @@ func (vlh videoListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vlh.generateSaltForURLEncryption(w, r)
 
 	videoFilesAndUserInfo := struct {
-		VideoFiles []FileInfo
+		VideoFiles []GroupedFileInfo
 		UserInfo   User
-	}{vlh.getVideoFilesInDirectory(), *vlh.sessionUser(r)}
+	}{vlh.groupByParent(), *vlh.sessionUser(r)}
 
 	tmpl.ExecuteTemplate(w, "layout", videoFilesAndUserInfo)
 }
@@ -47,17 +47,49 @@ func (vlh videoListHandler) generateSaltForURLEncryption(w http.ResponseWriter, 
 	return err
 }
 
+func (vlh videoListHandler) groupByParent() []GroupedFileInfo {
+	files := vlh.getVideoFilesInDirectory()
+	groupedVideos := []GroupedFileInfo{}
+
+	accTitleInfo := GroupedFileInfo{}
+	for _, file := range files {
+		if file.IsDirectory {
+			if file.ID > 1 {
+				groupedVideos = append(groupedVideos, accTitleInfo)
+				accTitleInfo = GroupedFileInfo{}
+			}
+			accTitleInfo.ID = file.ID
+			accTitleInfo.IsDirectory = file.IsDirectory
+			accTitleInfo.Name = file.Name
+			accTitleInfo.Path = file.Path
+		} else {
+			accTitleInfo.Childs = append(accTitleInfo.Childs, file)
+		}
+	}
+
+	if len(accTitleInfo.Childs) > 0 {
+		groupedVideos = append(groupedVideos, accTitleInfo)
+	}
+
+	return groupedVideos
+}
+
 func (vlh videoListHandler) getVideoFilesInDirectory() []FileInfo {
 	fileList := []FileInfo{}
+	id := 1
 	filepath.Walk("./static/videos/", func(path string, info os.FileInfo, err error) error {
 		path = strings.TrimPrefix(path, "static/videos/")
+		namepart := strings.Split(path, "/")
+		name := namepart[len(namepart)-1]
 		if len(path) > 0 {
-			fi := FileInfo{Name: path, Path: path, IsDirectory: info.IsDir()}
+			fi := FileInfo{ID: id, Name: name, Path: path, IsDirectory: info.IsDir()}
+			id++
 			fileList = append(fileList, fi)
 		}
 		return nil
 	})
 	return fileList
+
 }
 
 func (videoListHandler) destroySession(w http.ResponseWriter, r *http.Request) {

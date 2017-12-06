@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -14,8 +13,6 @@ func createDb(w http.ResponseWriter, r *http.Request) {
 }
 
 func edit(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.FormValue("Id"))
-	fmt.Println(r.FormValue("description"))
 	id, _ := strconv.Atoi(r.FormValue("Id"))
 	desc := r.FormValue("description")
 	err := updateRec(id, desc)

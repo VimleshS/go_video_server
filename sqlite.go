@@ -76,7 +76,7 @@ func readvideoInfo() []FileInfo {
 		if err != nil {
 			log.Fatal(err)
 		}
-		dbFileInfo = append(dbFileInfo, FileInfo{ID: id, Name: name, IsDirectory: isDirectory, Path: path})
+		dbFileInfo = append(dbFileInfo, FileInfo{ID: id, Name: name, IsDirectory: isDirectory, Path: path, Desc: desc})
 	}
 	err = rows.Err()
 	if err != nil {

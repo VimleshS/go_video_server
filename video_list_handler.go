@@ -65,6 +65,7 @@ func (vlh videoListHandler) groupByParent() []GroupedFileInfo {
 			accTitleInfo.IsDirectory = file.IsDirectory
 			accTitleInfo.Name = file.Name
 			accTitleInfo.Path = file.Path
+			accTitleInfo.Desc = file.Desc
 		} else {
 			accTitleInfo.Childs = append(accTitleInfo.Childs, file)
 		}

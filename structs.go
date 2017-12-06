@@ -11,6 +11,7 @@ type FileInfo struct {
 	Name        string
 	IsDirectory bool
 	Path        string
+	Desc        string
 }
 
 type GroupedFileInfo struct {
@@ -18,6 +19,7 @@ type GroupedFileInfo struct {
 	Name        string
 	IsDirectory bool
 	Path        string
+	Desc        string
 	Childs      []FileInfo
 }
 

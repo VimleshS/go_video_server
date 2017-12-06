@@ -38,13 +38,6 @@
                 </h4>
             </div>
             <div id={{$idnumber}} class="row panel-collapse collapse padding-14px">
-
-                {{/*range $child := $val.Childs}}
-                <div class="panel-body">
-                    {{$child.Path}}
-                </div>
-                {{end */}}
-
                 <table class="table table-striped table-bordered table-hover table-layout-fixed">
                 <tr>
                     <th class="col-md-11 text-center"><small>Video Files</small></th>
@@ -75,11 +68,11 @@
                         </div>
                     </td>
                     <td class="col-md-2">
-                        <a href="/play?file={{$child.Path}}">
+                        <a class="padding-right-5px" href="/play?file={{$child.Path}}">
                             <i class="fa fa-play-circle" aria-hidden="true"></i>
                         </a>
                         {{if $admin}}
-                        <a id="updateDesc" data-toggle="modal" data-desc={{$child.Path}} data-id={{$child.ID}} data-target="#myModal">
+                        <a id="updateDesc" class="mouse-pointer" data-toggle="modal" data-desc={{$child.Path}} data-id={{$child.ID}} data-target="#myModal">
                             <i class="fa fa-pencil-square-o" aria-hidden="true"></i>
                         </a>
                         {{end}}
@@ -114,7 +107,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                <button type="submit" id="submitForm" class="btn btn-default">Send</button>
+                <button type="submit" id="submitForm" class="btn btn-default">Update</button>
             </div>
         </div>
 
@@ -122,6 +115,8 @@
 </div>
 
 <script type="text/javascript">
+
+    $("a[href='#0']").closest('div.panel').hide()
 
     $("#contact_form").on("submit", function (e) {
         var postData = $(this).serializeArray();

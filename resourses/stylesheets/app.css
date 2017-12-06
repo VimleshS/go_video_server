@@ -29,3 +29,11 @@ body {
 .table-layout-fixed {
     table-layout: fixed;
 }
+
+.mouse-pointer {
+    cursor: pointer;
+}
+
+.padding-right-5px {
+    padding-right: 5px;
+}

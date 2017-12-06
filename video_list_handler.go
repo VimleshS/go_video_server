@@ -58,10 +58,10 @@ func (vlh videoListHandler) generateSaltForURLEncryption(w http.ResponseWriter, 
 }
 
 func (vlh videoListHandler) groupByParent() []GroupedFileInfo {
-	// updateRec("")
-
 	// files := vlh.getVideoFilesInDirectory()
-	files := vlh.VideoFilesFromDB()
+	// files := vlh.VideoFilesFromDB()
+	files := vlh.sanitiseVideoList()
+
 	groupedVideos := []GroupedFileInfo{}
 
 	accTitleInfo := GroupedFileInfo{}
@@ -84,8 +84,17 @@ func (vlh videoListHandler) groupByParent() []GroupedFileInfo {
 	if len(accTitleInfo.Childs) > 0 {
 		groupedVideos = append(groupedVideos, accTitleInfo)
 	}
-
 	return groupedVideos
+}
+
+func (vlh videoListHandler) sanitiseVideoList() []FileInfo {
+	files := []FileInfo{}
+	for _, file := range vlh.VideoFilesFromDB() {
+		if (strings.Trim(file.Name, "") != "") && (file.Name != ".DS_Store") {
+			files = append(files, file)
+		}
+	}
+	return files
 }
 
 func (vlh videoListHandler) getVideoFilesInDirectory() []FileInfo {

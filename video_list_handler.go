@@ -12,6 +12,13 @@ type videoListHandler struct {
 }
 
 func (vlh videoListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	user := vlh.sessionUser(r)
+	/*User not present in session*/
+	if user == nil {
+		roothandler(w, r)
+		return
+	}
+
 	tmpl, err := template.ParseFiles("templates/index.html", "templates/list.html")
 	if err != nil {
 		http.Error(w, http.StatusText(400), http.StatusBadRequest)
@@ -23,7 +30,7 @@ func (vlh videoListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	videoFilesAndUserInfo := struct {
 		VideoFiles []GroupedFileInfo
 		UserInfo   User
-	}{vlh.groupByParent(), *vlh.sessionUser(r)}
+	}{vlh.groupByParent(), *user}
 
 	tmpl.ExecuteTemplate(w, "layout", videoFilesAndUserInfo)
 }
@@ -34,10 +41,13 @@ func (vlh videoListHandler) sessionUser(r *http.Request) *User {
 	if _user != nil {
 		return _user.(*User)
 	}
-	return &User{
-		Picture: "https://lh6.googleusercontent.com/-TUpg87ezNDw/AAAAAAAAAAI/AAAAAAAAACQ/6g6K__7LDaQ/photo.jpg",
-		Email:   "vimlesh.sharma@synerzip.com",
-	}
+	return nil
+	/*
+		return &User{
+			Picture: "https://lh6.googleusercontent.com/-TUpg87ezNDw/AAAAAAAAAAI/AAAAAAAAACQ/6g6K__7LDaQ/photo.jpg",
+			Email:   "vimlesh.sharma@synerzip.com",
+		}
+	*/
 }
 
 func (vlh videoListHandler) generateSaltForURLEncryption(w http.ResponseWriter, r *http.Request) error {
@@ -108,4 +118,10 @@ func (videoListHandler) destroySession(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 	}
 	http.SetCookie(w, &cookie)
+
+	session, _ := store.Get(r, "user-details")
+	session.Options.MaxAge = -1
+	session.Save(r, w)
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

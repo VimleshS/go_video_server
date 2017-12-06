@@ -75,6 +75,7 @@ func main() {
 	r.HandleFunc("/play", playHandler).Methods("GET")
 	r.HandleFunc("/createdb", createDb).Methods("GET")
 	r.HandleFunc("/updateDesc", edit).Methods("POST")
+	r.HandleFunc("/destroySession", videoListHandler{}.destroySession).Methods("GET")
 
 	srv := &http.Server{
 		Handler: r,
@@ -87,6 +88,14 @@ func main() {
 }
 
 func roothandler(w http.ResponseWriter, r *http.Request) {
+	/*Check user in session and redirect*/
+	/*vlh := videoListHandler{}
+	if vlh.sessionUser(r) != nil {
+		vlh.ServeHTTP(w, r)
+		return
+	}*/
+	/*Check user in session and redirect*/
+
 	tmpl, err := template.ParseFiles("templates/index.html", "templates/login.html")
 	if err != nil {
 		log.Println(err.Error())

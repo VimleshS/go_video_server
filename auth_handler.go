@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,8 +18,6 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("------------- AUTH URL --------------------------")
-	fmt.Println(r.URL)
 	code := r.URL.Query().Get("code")
 
 	tok, err := conf.Exchange(oauth2.NoContext, code)
@@ -39,11 +36,14 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer email.Body.Close()
 	data, _ := ioutil.ReadAll(email.Body)
-	log.Println("Email body: ", string(data))
+	// log.Println("Email body: ", string(data))
 
 	user := User{}
 	json.Unmarshal(data, &user)
+	user.IsAdmin = isAdmin(user.Email)
 	session.Values["user"] = &user
 	session.Save(r, w)
-	videoListHandler{}.ServeHTTP(w, r)
+
+	// videoListHandler{}.ServeHTTP(w, r)
+	http.Redirect(w, r, "/list", http.StatusSeeOther)
 }

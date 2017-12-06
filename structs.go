@@ -40,4 +40,5 @@ type User struct {
 	Email         string `json:"email"`
 	EmailVerified string `json:"email_verified"`
 	Gender        string `json:"gender"`
+	IsAdmin       bool
 }

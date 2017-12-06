@@ -97,3 +97,20 @@ func updateRec(id int, desc string) error {
 	}
 	return nil
 }
+
+func isAdmin(email string) bool {
+	rows, err := db.Query("Select email from Admin where email = ?", email)
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+	defer rows.Close()
+	var admin string
+	for rows.Next() {
+		err = rows.Scan(&admin)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return (admin == email)
+}

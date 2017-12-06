@@ -37,3 +37,10 @@ body {
 .padding-right-5px {
     padding-right: 5px;
 }
+
+#video-name{
+    width: 75%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;    
+}

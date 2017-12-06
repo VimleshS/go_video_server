@@ -29,7 +29,10 @@ func createDB() {
 			Path 		VARCHAR (250),
 			Description TEXT
 			);
-			CREATE INDEX video_name_idx ON Videos (Name);`
+			CREATE INDEX video_name_idx ON Videos (Name);
+			CREATE TABLE Admin (
+			Email       STRING (40) PRIMARY KEY
+			);`
 
 	_, err := db.Exec(sqlStmt)
 	if err != nil {

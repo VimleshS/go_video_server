@@ -48,7 +48,10 @@ func (vlh videoListHandler) generateSaltForURLEncryption(w http.ResponseWriter, 
 }
 
 func (vlh videoListHandler) groupByParent() []GroupedFileInfo {
-	files := vlh.getVideoFilesInDirectory()
+	// updateRec("")
+
+	// files := vlh.getVideoFilesInDirectory()
+	files := vlh.VideoFilesFromDB()
 	groupedVideos := []GroupedFileInfo{}
 
 	accTitleInfo := GroupedFileInfo{}
@@ -90,6 +93,10 @@ func (vlh videoListHandler) getVideoFilesInDirectory() []FileInfo {
 	})
 	return fileList
 
+}
+
+func (vlh videoListHandler) VideoFilesFromDB() []FileInfo {
+	return readvideoInfo()
 }
 
 func (videoListHandler) destroySession(w http.ResponseWriter, r *http.Request) {

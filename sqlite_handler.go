@@ -1,49 +1,25 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"net/http"
+	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func init() {
-	db, err := sql.Open("sqlite3", "./videos.db")
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	stmt, err := db.Prepare(`CREATE TABLE Videos (
-		Id          INTEGER       PRIMARY KEY,						
-		Name        VARCHAR (100),
-		IsDirectory BOOL,
-		Description TEXT
-		);`)
+func createDb(w http.ResponseWriter, r *http.Request) {
+	createDB()
+	w.Write([]byte("DB Recreated with files in Directory `static/videos`"))
+}
 
+func edit(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.FormValue("Id"))
+	fmt.Println(r.FormValue("description"))
+	id, _ := strconv.Atoi(r.FormValue("Id"))
+	desc := r.FormValue("description")
+	err := updateRec(id, desc)
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
-	res, err := stmt.Exec()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	fmt.Println(res.RowsAffected)
-
-	files := videoListHandler{}.getVideoFilesInDirectory()
-	for _, file := range files {
-		stmt, err := db.Prepare("INSERT INTO Videos(Id, Name, IsDirectory, Description) VALUES (?,?,?,?)")
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		_, err1 := stmt.Exec(file.ID, file.Name, file.IsDirectory, file.Path)
-		if err1 != nil {
-			fmt.Println(err.Error())
-			return
-		}
-	}
-	fmt.Println("Sync complete")
 }

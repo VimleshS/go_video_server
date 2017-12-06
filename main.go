@@ -73,6 +73,8 @@ func main() {
 	r.HandleFunc("/auth", authHandler).Methods("GET")
 	r.Handle("/list", videoListHandler{}).Methods("GET")
 	r.HandleFunc("/play", playHandler).Methods("GET")
+	r.HandleFunc("/createdb", createDb).Methods("GET")
+	r.HandleFunc("/updateDesc", edit).Methods("POST")
 
 	srv := &http.Server{
 		Handler: r,

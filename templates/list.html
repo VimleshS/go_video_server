@@ -4,19 +4,28 @@
     <h2>Videos available on server</h2>
 </div>
 
-<div class="row col-md-offset-2 col-md-8  padding-bottom-20">
-    <div class="col-md-10">
-        <h3>
-            Hello {{.UserInfo.Email}}
-        </h3>
-    </div>
+<div class="row col-md-offset-2 col-md-8 padding-bottom-20">
     <div class="col-md-2 text-center">
         <img src={{.UserInfo.Picture}}  height="60" width="60">
-         {{$admin := .UserInfo.IsAdmin}}
+        {{$admin := .UserInfo.IsAdmin}}
     </div>   
+    <div class="col-md-10 text-right">
+        <h4 class="text-primary">
+            Wellcome, {{.UserInfo.Email}}
+        </h4>
+        <a href="/list" class="padding-right-5px">
+            <i class="fa fa-refresh" aria-hidden="true"></i>
+            <small>Refresh List</small>
+        </a>
+        <a href="/destroySession">
+            <i class="fa fa-sign-out" aria-hidden="true"></i>
+            <small>Logout</small>
+        </a>
+        
+    </div>
 </div>
 
-<div class="row col-md-offset-8 col-md-2 padding-bottom-20">
+<!-- <div class="row col-md-offset-8 col-md-2 padding-bottom-20">
     <div class="text-center">
         <a href="/list" class="padding-right-5px">
             <i class="fa fa-refresh" aria-hidden="true"></i>
@@ -27,7 +36,7 @@
             <small>Logout</small>
         </a>
     </div>
-</div>
+</div> -->
 
 <div class="row">
     <div class="col-md-offset-2 col-md-8 panel-group" id="accordion">

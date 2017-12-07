@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -20,7 +19,8 @@ func init() {
 }
 
 func createDB() {
-	os.Remove("./videos.db")
+	db.Exec(`Drop table Videos;
+		     Drop table Admin;`)
 
 	sqlStmt := `CREATE TABLE Videos (
 			Id          INTEGER       PRIMARY KEY,

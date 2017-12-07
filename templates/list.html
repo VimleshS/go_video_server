@@ -76,7 +76,7 @@
                                     Description:
                                 </small>
                             </strong>
-                            <small>
+                            <small class="description" >
                                 {{$child.Desc}}
                             </small>
                         </div>
@@ -131,6 +131,7 @@
 <script type="text/javascript">
 
     $("a[href='#0']").closest('div.panel').hide()
+    var editedId = -1;
 
     $("#contact_form").on("submit", function (e) {
         var postData = $(this).serializeArray();
@@ -143,10 +144,11 @@
                 // $('#contact_dialog .modal-header .modal-title').html("Result");
                 // $('#contact_dialog .modal-body').html(data);
                 // $("#submitForm").remove();
+                var tr = $("a[data-id='"+ editedId +"']").closest('tr');
+                $(tr).find(".description").text($("#contact_form textarea").val());
                 $('#myModal').modal('toggle');
             },
             error: function (jqXHR, status, error) {
-                debugger;
                 console.log(status + ": " + error);
             }
         });
@@ -164,8 +166,16 @@
         //populate the textbox
         $(e.currentTarget).find('input[name="Id"]').val(videoId);
 
-        var videodesc = $(e.relatedTarget).data('desc');
-        $(e.currentTarget).find('textarea[name="description"]').val(videodesc);
+        var tr = $("a[data-id='" + videoId + "']").closest('tr');
+        var videodesc = $(tr).find(".description").text();
+
+        if (videodesc.trim() == "" ){
+            videodesc = $(e.relatedTarget).data('desc');
+            $(e.currentTarget).find('textarea[name="description"]').val(videodesc);
+        } else{
+            $(e.currentTarget).find('textarea[name="description"]').val(videodesc);
+        }
+        editedId = videoId;
     });
 
 </script>

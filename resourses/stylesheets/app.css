@@ -44,3 +44,8 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;    
 }
+
+.edited-by{
+    font-style: italic;
+    display: inline;
+}

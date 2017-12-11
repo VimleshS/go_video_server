@@ -76,6 +76,7 @@ func (vlh videoListHandler) groupByParent() []GroupedFileInfo {
 			accTitleInfo.Name = file.Name
 			accTitleInfo.Path = file.Path
 			accTitleInfo.Desc = file.Desc
+			accTitleInfo.LastEditedBy = file.LastEditedBy
 		} else {
 			accTitleInfo.Childs = append(accTitleInfo.Childs, file)
 		}

@@ -23,11 +23,12 @@ func createDB() {
 		     Drop table Admin;`)
 
 	sqlStmt := `CREATE TABLE Videos (
-			Id          INTEGER       PRIMARY KEY,
-			Name        VARCHAR (100),
-			IsDirectory BOOL,
-			Path 		VARCHAR (250),
-			Description TEXT
+			Id           INTEGER       PRIMARY KEY,
+			Name         VARCHAR (100),
+			IsDirectory  BOOL,
+			Path 		 VARCHAR (250),
+			Description  TEXT,
+			LastEditedBy VARCHAR (100)
 			);
 			CREATE INDEX video_name_idx ON Videos (Name);
 			CREATE TABLE Admin (
@@ -64,7 +65,7 @@ func createDB() {
 func readvideoInfo() []FileInfo {
 	dbFileInfo := []FileInfo{}
 
-	rows, err := db.Query("select Id, Name, IsDirectory, Path, Description from Videos")
+	rows, err := db.Query("select Id, Name, IsDirectory, Path, Description, LastEditedBy from Videos")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,11 +76,17 @@ func readvideoInfo() []FileInfo {
 		var isDirectory bool
 		var path string
 		var desc string
-		err = rows.Scan(&id, &name, &isDirectory, &path, &desc)
+		var lastEdited sql.NullString
+		err = rows.Scan(&id, &name, &isDirectory, &path, &desc, &lastEdited)
 		if err != nil {
 			log.Fatal(err)
 		}
-		dbFileInfo = append(dbFileInfo, FileInfo{ID: id, Name: name, IsDirectory: isDirectory, Path: path, Desc: desc})
+		dbFileInfo = append(dbFileInfo, FileInfo{ID: id,
+			Name:        name,
+			IsDirectory: isDirectory,
+			Path:        path, Desc: desc,
+			LastEditedBy: lastEdited.String},
+		)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -88,13 +95,14 @@ func readvideoInfo() []FileInfo {
 	return dbFileInfo
 }
 
-func updateRec(id int, desc string) error {
-	stmt, err := db.Prepare("UPDATE Videos SET Description = ? WHERE Id = ?")
+func updateRec(id int, LastEditedBy, desc string) error {
+	stmt, err := db.Prepare("UPDATE Videos SET Description = ?, LastEditedBy =? WHERE Id = ?")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(desc, id)
+
+	_, err = stmt.Exec(desc, LastEditedBy, id)
 	if err != nil {
 		return err
 	}

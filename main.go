@@ -50,7 +50,7 @@ func init() {
 	conf = &oauth2.Config{
 		ClientID:     cred.Cid,
 		ClientSecret: cred.Csecret,
-		RedirectURL:  "http://127.0.0.1:9090/auth",
+		RedirectURL:  cred.Aurl,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email", // You have to select your own scope from here -> https://developers.google.com/identity/protocols/googlescopes#google_sign-in
 		},
@@ -79,11 +79,17 @@ func main() {
 
 	srv := &http.Server{
 		Handler: r,
-		Addr:    "127.0.0.1:9090",
+		/*
+			Examples
+			Addr:  "127.0.0.1:9090",
+		*/
+
+		Addr: cred.Sip,
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
+	log.Println("Server started at ", cred.Sip)
 	log.Fatal(srv.ListenAndServe())
 }
 

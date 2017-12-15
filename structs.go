@@ -29,6 +29,8 @@ type GroupedFileInfo struct {
 type Credentials struct {
 	Cid     string `json:"cid"`
 	Csecret string `json:"csecret"`
+	Sip     string `json:"ip"`
+	Aurl    string `json:"url"`
 }
 
 // User is a retrieved and authentiacted user.
